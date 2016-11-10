@@ -8,99 +8,9 @@ import tempfile
 
 import git
 
-#IGNORE_PATTERNS = ('.git', ".DS_Store")
 SAFE_CHARS = ["-", "_", "."]
 MAX_LENGTH = 100
-
-#STUDENT = "student"
 DEVELOP_PATTERN = "develop-"
-#DEVELOP_DEFAULT = "all develop branches"
-
-DIFF_FORMAT = """
-
-You can download a zip of this exercise [here](https://github.com/udacity/ud843-QuakeReport/archive/{number}-Exercise-{name}.zip), \
-and a zip of the solution [here](https://github.com/udacity/ud843-QuakeReport/archive/{number}-Solution-{name}.zip). \
-Also, you can find a visual summary of the solution [here](https://github.com/udacity/ud843-QuakeReport/compare/\
-{number}-Exercise-{name}...{number}-Solution-{name}).
-
-"""
-
-
-def flatten(repo_dir, target_dir, student, develop_branches, remove_branches, links):
-    repo = git.Repo(repo_dir)
-
-    if develop_branches == DEVELOP_DEFAULT:
-        develop_branches = [
-            branch for branch in repo.branches if DEVELOP in branch.name]
-
-    if remove_branches:
-        remove_local_branches(repo, student, develop_branches)
-
-    flat = len(develop_branches) == 1
-
-    # print develop_branches
-
-    try:
-        temp_dir = tempfile.mkdtemp()
-        try:
-            current_branch = repo.active_branch
-            print "Stashing"
-            repo.git.stash()
-
-            for develop in develop_branches:
-                to_temp_dir(repo, repo_dir, develop, temp_dir, flat, links)
-            if links:
-                insert_diff_links(temp_dir)
-
-            copy_snapshots(repo, student, temp_dir, target_dir)
-        finally:
-            if current_branch:
-                repo.git.checkout(current_branch)
-            print "Popping"
-            if repo.git.stash("list"):
-                repo.git.stash("pop")
-    finally:
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-
-    print "Done! Review and commit the", student, "branch at your leisure."
-    print "Then run $ git push --all --prune"
-
-
-def remove_local_branches(repo, student, develop_branches):
-    for branch in repo.branches:
-        if branch.name != student and branch not in develop_branches:
-            print "Removing local branch:", branch.name
-            repo.git.branch(branch.name, "-D")
-
-
-def to_temp_dir(repo, repo_dir, develop, temp_dir, flat, links):
-    for rev in repo.git.rev_list(develop).split("\n"):
-        commit = repo.commit(rev)
-        branch_name = cleanCommitMessage(commit.message)
-        if "Exercise" in branch_name or "Solution" in branch_name:
-            if branch_name in repo.branches:
-                repo.git.branch(branch_name, "-D")
-            new_branch = repo.create_head(branch_name)
-            new_branch.set_commit(rev)
-
-            repo.git.checkout(commit)
-            print "Saving snapshot of:", branch_name
-            repo.git.clean("-fdx")
-            if flat:
-                target_dir = os.path.join(temp_dir, branch_name)
-            else:
-                folder_name = develop.name.split("-", 1)[1]
-                target_dir = os.path.join(temp_dir, folder_name, branch_name)
-
-            shutil.copytree(repo_dir, target_dir,
-                            ignore=shutil.ignore_patterns(*IGNORE_PATTERNS))
-
-            if links:
-                with open(os.path.join(target_dir, "README.md"), "a") as readme:
-                    print branch_name
-                    number, _, name = branch_name.split("-")
-                    readme.write(DIFF_FORMAT.format(number=number, name=name))
 
 
 def cleanCommitMessage(message):
@@ -108,26 +18,6 @@ def cleanCommitMessage(message):
     safe_message = "".join(
         c for c in first_line if c.isalnum() or c in SAFE_CHARS).strip()
     return safe_message[:MAX_LENGTH] if len(safe_message) > MAX_LENGTH else safe_message
-
-
-def insert_diff_links(temp_dir):
-    for item in os.listdir(temp_dir):
-        number, _, name = item.split("-")
-        with open(os.path.join(temp_dir, item, "README.md"), "a") as readme:
-            readme.write(DIFF_FORMAT.format(number=number, name=name))
-
-
-def copy_snapshots(repo, student, temp_dir, target_dir):
-    if target_dir == os.getcwd():
-        repo.git.checkout(student)
-    for item in os.listdir(temp_dir):
-        source_dir = os.path.join(temp_dir, item)
-        dest_dir = os.path.join(target_dir, item)
-
-        if os.path.exists(dest_dir):
-            shutil.rmtree(dest_dir)
-        print "Copying: ", item
-        shutil.copytree(source_dir, dest_dir)
 
 
 GITHUB_FOLDER_BASE_URL = "https://github.com/udacity/ud851-Exercises/tree/student/"
@@ -191,12 +81,12 @@ class BranchText:
         with open(os.path.join(self.directory, filename), "w") as downloadText:
             downloadText.write(
                 MARKDOWN_DOWNLOAD_FORMAT.format(appName=self.appName,
-                 folderName=self.folderName,
-                 folderLink=self.folderLink))
+                                                folderName=self.folderName,
+                                                folderLink=self.folderLink))
 
     def makeExerciseSolutionFile(self, repo, sunshineStyle):
         stringToWrite = ""
-        for rev in repo.git.rev_list(self.branchName,reverse=True).split("\n"):
+        for rev in repo.git.rev_list(self.branchName, reverse=True).split("\n"):
             commit = repo.commit(rev)
             curStepBranchName = cleanCommitMessage(commit.message)
             print curStepBranchName
@@ -210,7 +100,8 @@ class BranchText:
                 stringToWrite = stringToWrite + "\n\n" + curExerciseString
 
                 # Generate solution text
-                curSolutionName = curExerciseName.replace("Exercise","Solution")
+                curSolutionName = curExerciseName.replace(
+                    "Exercise", "Solution")
                 curDiffLink = GITHUB_DIFF_URL.format(
                     before=curExerciseName,
                     after=curSolutionName)
@@ -228,12 +119,11 @@ class BranchText:
 
                 stringToWrite = stringToWrite + "\n\n" + curSolutionString
 
-
-
         filename = EXERCISE_SOLUTION_FILENAME.format(
-                folderName=self.folderName)
+            folderName=self.folderName)
         with open(os.path.join(self.directory, filename), "w") as exerciseSolutionText:
             exerciseSolutionText.write(stringToWrite)
+
 
 def makeTextAtoms(repoDir, targetDir, sunshineStyle):
     print "Sunshine style is " + str(sunshineStyle)
@@ -256,13 +146,12 @@ def makeTextAtoms(repoDir, targetDir, sunshineStyle):
             curBranchText.makeExerciseSolutionFile(repo, sunshineStyle)
 
     print branchTexts
-    #popping
+    # popping
     if startingBranch:
         repo.git.checkout(startingBranch)
     print "Popping"
     if repo.git.stash("list"):
         repo.git.stash("pop")
-
 
     #branchDir = makeDirectory(targetDir)
     # makeDownloadFile(branchDir)
@@ -288,8 +177,8 @@ def main():
                         help="output directory")
 
     parser.add_argument('-s', '--sunshinestyle',
-                    action='store_true',
-                    help="whether text should be sunshine style solution markdown")
+                        action='store_true',
+                        help="whether text should be sunshine style solution markdown")
 
     parsed = parser.parse_args()
 
