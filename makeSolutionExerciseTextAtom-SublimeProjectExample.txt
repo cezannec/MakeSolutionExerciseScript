@@ -1,0 +1,9 @@
+{
+	"virtualenv": "/Users/lyla/VirtualEnvs/git_flattener",
+
+	  "build_systems":
+  [{
+    "name": "Run with args",
+    "cmd": ["<your version python>", "$file", "-o <output dir>", "-r <exercise dir>", "-s"],
+  }]
+}
